@@ -1,0 +1,1719 @@
+import { useEffect, useMemo, useState } from 'react'
+import './App.css'
+
+const API_URL = 'http://localhost:5000/api/organizations'
+
+const initialOrganizations = [
+  {
+    code: 'ORG001', name: 'ABC Technologies', currency: 'INR',
+    status: 'Active', license: true, type: 'Head Office',
+    industry: 'Information Technology', registrationNumber: 'REG1001',
+    incorporationDate: '2020-01-15', taxId: '', address: 'Hyderabad',
+    country: 'India', state: 'Telangana', city: 'Hyderabad',
+    pincode: '500081', phone: '', email: '', website: '',
+  },
+  {
+    code: 'ORG002', name: 'Global Services', currency: 'USD',
+    status: 'Active', license: false, type: 'Branch',
+    industry: 'Other', registrationNumber: 'REG1002',
+    incorporationDate: '', taxId: '', address: 'New York',
+    country: 'United States', state: 'New York', city: 'New York',
+    pincode: '', phone: '', email: '', website: '',
+  },
+  {
+    code: 'ORG003', name: 'Sample Industries', currency: 'INR',
+    status: 'Inactive', license: false, type: 'Subsidiary',
+    industry: 'Manufacturing', registrationNumber: '',
+    incorporationDate: '', taxId: '', address: '',
+    country: 'India', state: 'Karnataka', city: 'Bengaluru',
+    pincode: '', phone: '', email: '', website: '',
+  },
+]
+
+const emptyForm = {
+  code: '',
+  name: '',
+  license: false,
+  type: '',
+  currency: 'INR',
+  industry: '',
+  registrationNumber: '',
+  incorporationDate: '',
+  taxId: '',
+  address: '',
+  country: '',
+  state: '',
+  city: '',
+  pincode: '',
+  phone: '',
+  email: '',
+  website: '',
+  status: 'Active',
+}
+
+const countryStates = {
+  India: [
+    'Andhra Pradesh', 'Arunachal Pradesh', 'Assam', 'Bihar',
+    'Chhattisgarh', 'Goa', 'Gujarat', 'Haryana', 'Himachal Pradesh',
+    'Jharkhand', 'Karnataka', 'Kerala', 'Madhya Pradesh',
+    'Maharashtra', 'Manipur', 'Meghalaya', 'Mizoram', 'Nagaland',
+    'Odisha', 'Punjab', 'Rajasthan', 'Sikkim', 'Tamil Nadu',
+    'Telangana', 'Tripura', 'Uttar Pradesh', 'Uttarakhand',
+    'West Bengal', 'Andaman and Nicobar Islands', 'Chandigarh',
+    'Dadra and Nagar Haveli and Daman and Diu', 'Delhi',
+    'Jammu and Kashmir', 'Ladakh', 'Lakshadweep', 'Puducherry',
+  ],
+  'United States': [
+    'Alabama', 'Alaska', 'Arizona', 'Arkansas', 'California',
+    'Colorado', 'Connecticut', 'Delaware', 'Florida', 'Georgia',
+    'Hawaii', 'Idaho', 'Illinois', 'Indiana', 'Iowa', 'Kansas',
+    'Kentucky', 'Louisiana', 'Maine', 'Maryland', 'Massachusetts',
+    'Michigan', 'Minnesota', 'Mississippi', 'Missouri', 'Montana',
+    'Nebraska', 'Nevada', 'New Hampshire', 'New Jersey',
+    'New Mexico', 'New York', 'North Carolina', 'North Dakota',
+    'Ohio', 'Oklahoma', 'Oregon', 'Pennsylvania', 'Rhode Island',
+    'South Carolina', 'South Dakota', 'Tennessee', 'Texas', 'Utah',
+    'Vermont', 'Virginia', 'Washington', 'West Virginia',
+    'Wisconsin', 'Wyoming',
+  ],
+  'United Kingdom': [
+    'England', 'Scotland', 'Wales', 'Northern Ireland',
+  ],
+  Australia: [
+    'Australian Capital Territory', 'New South Wales',
+    'Northern Territory', 'Queensland', 'South Australia',
+    'Tasmania', 'Victoria', 'Western Australia',
+  ],
+  Germany: [
+    'Baden-Württemberg', 'Bavaria', 'Berlin', 'Brandenburg',
+    'Bremen', 'Hamburg', 'Hesse', 'Lower Saxony',
+    'Mecklenburg-Vorpommern', 'North Rhine-Westphalia',
+    'Rhineland-Palatinate', 'Saarland', 'Saxony',
+    'Saxony-Anhalt', 'Schleswig-Holstein', 'Thuringia',
+  ],
+}
+
+const countries = Object.keys(countryStates)
+
+/* API helpers */
+
+async function apiRequest(url, options = {}) {
+  const response = await fetch(url, {
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+  const text = await response.text()
+  let data = null
+
+  try {
+    data = text ? JSON.parse(text) : null
+  } catch {
+    data = text
+  }
+
+  if (!response.ok) {
+    throw new Error(
+      typeof data === 'object' && data !== null
+        ? data.message || data.error || `HTTP error ${response.status}`
+        : `HTTP error ${response.status}: ${data || response.statusText}`
+    )
+  }
+
+  return data
+}
+
+function normalizeOrganization(org) {
+  const currencyValue =
+    org.currency ??
+    org.reporting_currency ??
+    org.currency_code ??
+    org.reportingCurrency ??
+    'INR'
+
+  const typeValue =
+    org.type ??
+    org.organization_type ??
+    org.org_type ??
+    ''
+
+  const licenseValue =
+    org.license ??
+    org.license_organization ??
+    org.licenseOrganization ??
+    false
+
+  return {
+    ...org,
+
+    // Keep the database ID for PUT and DELETE.
+    id: org.id ?? org.organization_id ?? org.organizationId ?? null,
+
+    code: String(
+      org.code ?? org.organization_code ?? org.organizationCode ?? ''
+    ),
+
+    name: String(
+      org.name ?? org.organization_name ?? org.organizationName ?? ''
+    ),
+
+    currency:
+      typeof currencyValue === 'object'
+        ? currencyValue.currency_code ?? currencyValue.code ?? 'INR'
+        : String(currencyValue),
+
+    status: String(org.status ?? org.organization_status ?? 'Active'),
+
+    license:
+      licenseValue === true ||
+      licenseValue === 1 ||
+      licenseValue === '1' ||
+      licenseValue === 'true',
+
+    type:
+      typeof typeValue === 'object'
+        ? typeValue.name ?? typeValue.type_name ?? ''
+        : String(typeValue),
+
+    industry:
+      typeof org.industry === 'object'
+        ? org.industry.name ?? org.industry.industry_name ?? ''
+        : org.industry ?? org.industry_name ?? '',
+
+    registrationNumber:
+      org.registrationNumber ?? org.registration_number ?? '',
+
+    incorporationDate: String(
+      org.incorporationDate ??
+      org.incorporation_date ??
+      org.date_of_incorporation ??
+      ''
+    ).slice(0, 10),
+
+    taxId: org.taxId ?? org.tax_id ?? '',
+
+    address:
+      org.address ?? org.registered_address ?? '',
+
+    country:
+      typeof org.country === 'object'
+        ? org.country.country_name ?? org.country.name ?? ''
+        : org.country ?? org.country_name ?? '',
+
+    state:
+      typeof org.state === 'object'
+        ? org.state.state_name ?? org.state.name ?? ''
+        : org.state ?? org.state_name ?? '',
+
+    city: org.city ?? '',
+
+    pincode:
+      org.pincode ?? org.postal_code ?? org.zip_code ?? '',
+
+    phone: org.phone ?? org.phone_number ?? '',
+
+    email: org.email ?? '',
+
+    website: org.website ?? '',
+  }
+}
+
+function getOrganizationIdentifier(org) {
+  // Prefer the database primary key.
+  // Fall back to organization code if the API uses codes in its routes.
+  return org.id ?? org.code
+}
+
+function getOrganizationArray(result) {
+  if (Array.isArray(result)) return result
+  if (Array.isArray(result?.data)) return result.data
+  if (Array.isArray(result?.organizations)) return result.organizations
+  if (Array.isArray(result?.results)) return result.results
+
+  return null
+}
+
+function App() {
+  const [organizations, setOrganizations] = useState(initialOrganizations)
+  const [screen, setScreen] = useState('list')
+  const [form, setForm] = useState({ ...emptyForm })
+  const [editingCode, setEditingCode] = useState(null)
+  const [selectedCode, setSelectedCode] = useState('')
+  const [viewOrganization, setViewOrganization] = useState(null)
+  const [message, setMessage] = useState('')
+  const [errors, setErrors] = useState({})
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+
+  // API loading and error state.
+  const [loading, setLoading] = useState(false)
+  const [apiError, setApiError] = useState('')
+
+  // Main list search: values apply only after Search is clicked.
+  const [searchCode, setSearchCode] = useState('')
+  const [searchName, setSearchName] = useState('')
+  const [statusFilter, setStatusFilter] = useState('')
+  const [appliedSearch, setAppliedSearch] = useState({
+    code: '',
+    name: '',
+    status: '',
+  })
+  const [page, setPage] = useState(1)
+  const [rowsPerPage, setRowsPerPage] = useState(10)
+
+  // Organization selection modal.
+  const [showSelector, setShowSelector] = useState(false)
+  const [modalCode, setModalCode] = useState('')
+  const [modalName, setModalName] = useState('')
+  const [modalStatus, setModalStatus] = useState('')
+  const [modalApplied, setModalApplied] = useState({
+    code: '',
+    name: '',
+    status: '',
+  })
+  const [modalPage, setModalPage] = useState(1)
+  const [modalRowsPerPage, setModalRowsPerPage] = useState(5)
+
+  // Load organizations from the database through the backend API.
+  useEffect(() => {
+    let cancelled = false
+
+    async function loadOrganizations() {
+      setLoading(true)
+      setApiError('')
+
+      try {
+        const result = await apiRequest(API_URL)
+        const records = getOrganizationArray(result)
+
+        if (!records) {
+          throw new Error(
+            'Invalid API response. Expected an array of organizations.'
+          )
+        }
+
+        const normalizedRecords = records.map(normalizeOrganization)
+
+        if (!cancelled) {
+          setOrganizations(normalizedRecords)
+
+          // Clear selection if the selected record no longer exists.
+          setSelectedCode((previous) =>
+            normalizedRecords.some((org) => org.code === previous)
+              ? previous
+              : ''
+          )
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setApiError(
+            `${error.message}. Displaying the available sample data.`
+          )
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false)
+        }
+      }
+    }
+
+    loadOrganizations()
+
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  const filteredOrganizations = useMemo(() => {
+    return organizations.filter((org) => {
+      const matchesCode = String(org.code ?? '')
+        .toLowerCase()
+        .includes(appliedSearch.code.toLowerCase())
+
+      const matchesName = String(org.name ?? '')
+        .toLowerCase()
+        .includes(appliedSearch.name.toLowerCase())
+
+      const matchesStatus =
+        !appliedSearch.status || org.status === appliedSearch.status
+
+      return matchesCode && matchesName && matchesStatus
+    })
+  }, [organizations, appliedSearch])
+
+  const totalPages = Math.max(
+    1,
+    Math.ceil(filteredOrganizations.length / rowsPerPage)
+  )
+
+  const visibleOrganizations = filteredOrganizations.slice(
+    (page - 1) * rowsPerPage,
+    page * rowsPerPage
+  )
+
+  const selectedOrganization = organizations.find(
+    (org) => org.code === selectedCode
+  )
+
+  const modalOrganizations = useMemo(() => {
+    return organizations.filter((org) => {
+      const matchesCode = String(org.code ?? '')
+        .toLowerCase()
+        .includes(modalApplied.code.toLowerCase())
+
+      const matchesName = String(org.name ?? '')
+        .toLowerCase()
+        .includes(modalApplied.name.toLowerCase())
+
+      const matchesStatus =
+        !modalApplied.status || org.status === modalApplied.status
+
+      return matchesCode && matchesName && matchesStatus
+    })
+  }, [organizations, modalApplied])
+
+  const modalTotalPages = Math.max(
+    1,
+    Math.ceil(modalOrganizations.length / modalRowsPerPage)
+  )
+
+  const visibleModalOrganizations = modalOrganizations.slice(
+    (modalPage - 1) * modalRowsPerPage,
+    modalPage * modalRowsPerPage
+  )
+
+  function updateField(event) {
+    const { name, value, type, checked } = event.target
+
+    setForm((previous) => {
+      if (name === 'country') {
+        return { ...previous, country: value, state: '' }
+      }
+
+      return {
+        ...previous,
+        [name]: type === 'checkbox' ? checked : value,
+      }
+    })
+
+    setErrors((previous) => ({ ...previous, [name]: '' }))
+    setMessage('')
+    setApiError('')
+  }
+
+  function openAddScreen() {
+    setForm({ ...emptyForm })
+    setEditingCode(null)
+    setViewOrganization(null)
+    setErrors({})
+    setMessage('')
+    setApiError('')
+    setScreen('add')
+  }
+
+  function openEditScreen() {
+    if (!selectedOrganization) {
+      setMessage('Please select an organization to edit.')
+      return
+    }
+
+    setForm({ ...emptyForm, ...selectedOrganization })
+    setEditingCode(selectedOrganization.code)
+    setErrors({})
+    setMessage('')
+    setApiError('')
+    setScreen('add')
+  }
+
+  function goToList() {
+    setScreen('list')
+    setViewOrganization(null)
+    setEditingCode(null)
+    setErrors({})
+    setMessage('')
+    setShowDeleteConfirm(false)
+  }
+
+  function runSearch() {
+    setAppliedSearch({
+      code: searchCode.trim(),
+      name: searchName.trim(),
+      status: statusFilter,
+    })
+    setPage(1)
+    setMessage('')
+  }
+
+  function clearSearch() {
+    setSearchCode('')
+    setSearchName('')
+    setStatusFilter('')
+    setAppliedSearch({ code: '', name: '', status: '' })
+    setPage(1)
+    setMessage('')
+  }
+
+  function runModalSearch() {
+    setModalApplied({
+      code: modalCode.trim(),
+      name: modalName.trim(),
+      status: modalStatus,
+    })
+    setModalPage(1)
+  }
+
+  function clearModalSearch() {
+    setModalCode('')
+    setModalName('')
+    setModalStatus('')
+    setModalApplied({ code: '', name: '', status: '' })
+    setModalPage(1)
+  }
+
+  function openSelector() {
+    setModalCode('')
+    setModalName('')
+    setModalStatus('')
+    setModalApplied({ code: '', name: '', status: '' })
+    setModalPage(1)
+    setShowSelector(true)
+  }
+
+  function chooseOrganization(code) {
+    setSelectedCode(code)
+    setShowSelector(false)
+    setMessage('')
+  }
+
+  function validateForm() {
+    const nextErrors = {}
+
+    if (!form.code.trim()) {
+      nextErrors.code = 'Organization Code is required.'
+    }
+
+    if (!form.name.trim()) {
+      nextErrors.name = 'Organization Name is required.'
+    }
+
+    if (!form.currency) {
+      nextErrors.currency = 'Reporting Currency is required.'
+    }
+
+    if (!form.country) {
+      nextErrors.country = 'Country is required.'
+    }
+
+    if (!form.state) {
+      nextErrors.state = 'State / Province is required.'
+    }
+
+    if (
+      form.email &&
+      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)
+    ) {
+      nextErrors.email = 'Enter a valid email address.'
+    }
+
+    if (
+      form.phone &&
+      !/^[+()\d\s.-]{7,20}$/.test(form.phone)
+    ) {
+      nextErrors.phone = 'Enter a valid phone number.'
+    }
+
+    if (
+      form.pincode &&
+      !/^[a-zA-Z0-9\s-]{3,12}$/.test(form.pincode)
+    ) {
+      nextErrors.pincode = 'Enter a valid PIN / postal code.'
+    }
+
+    const duplicate = organizations.some(
+      (org) =>
+        org.code.toLowerCase() === form.code.trim().toLowerCase() &&
+        org.code !== editingCode
+    )
+
+    if (form.code.trim() && duplicate) {
+      nextErrors.code = 'Organization Code already exists.'
+    }
+
+    setErrors(nextErrors)
+    return Object.keys(nextErrors).length === 0
+  }
+
+  // POST for Add and PUT for Edit.
+  
+  // POST for Add and PUT for Edit.
+  async function saveOrganization(event) {
+    event.preventDefault()
+
+    console.log('Save button clicked')
+    console.log('Form data:', form)
+
+    if (!validateForm()) {
+      setMessage('Please correct the highlighted fields.')
+      console.warn('Validation failed:', form)
+      return
+    }
+
+    setLoading(true)
+    setApiError('')
+    setMessage('')
+
+    try {
+      const isEditing = Boolean(editingCode)
+
+      const existingOrganization = isEditing
+        ? organizations.find((org) => org.code === editingCode)
+        : null
+
+      if (isEditing && !existingOrganization) {
+        throw new Error('The organization to update was not found.')
+      }
+
+      // Convert frontend field names to backend/database field names.
+      const payload = {
+        organization_code: form.code.trim(),
+        organization_name: form.name.trim(),
+        license_organization: form.license ? 1 : 0,
+        status: form.status,
+        registration_number: form.registrationNumber || null,
+        date_of_incorporation: form.incorporationDate || null,
+        tax_id: form.taxId || null,
+        registered_address: form.address || null,
+        pincode: form.pincode || null,
+        phone: form.phone || null,
+        email: form.email || null,
+        website: form.website || null,
+
+        // These fields require matching numeric IDs in the database.
+        reporting_currency_id: null,
+        org_type_id: null,
+        industry_id: null,
+        country_id: null,
+        state_id: null,
+        city_id: null,
+      }
+
+      const url = isEditing
+        ? `${API_URL}/${encodeURIComponent(
+            getOrganizationIdentifier(existingOrganization)
+          )}`
+        : API_URL
+
+      console.log('Sending request:', url)
+      console.log('Payload:', payload)
+
+      const result = await apiRequest(url, {
+        method: isEditing ? 'PUT' : 'POST',
+        body: JSON.stringify(payload),
+      })
+
+      console.log('Backend response:', result)
+
+      // Use the saved record returned by the backend.
+      const responseRecord =
+        result?.data && !Array.isArray(result.data)
+          ? result.data
+          : result?.organization ?? result
+
+      const finalOrganization = normalizeOrganization({
+        ...form,
+        ...(responseRecord &&
+        typeof responseRecord === 'object' &&
+        !Array.isArray(responseRecord)
+          ? responseRecord
+          : {}),
+        id:
+          responseRecord?.id ??
+          responseRecord?.organization_id ??
+          existingOrganization?.id ??
+          null,
+      })
+
+      if (isEditing) {
+        setOrganizations((previous) =>
+          previous.map((org) =>
+            org.code === editingCode ? finalOrganization : org
+          )
+        )
+        setMessage('Organization updated successfully.')
+      } else {
+        setOrganizations((previous) => [
+          ...previous,
+          finalOrganization,
+        ])
+        setMessage('Organization created successfully.')
+      }
+
+      setSelectedCode(finalOrganization.code)
+      setViewOrganization(finalOrganization)
+      setAppliedSearch({ code: '', name: '', status: '' })
+      setSearchCode('')
+      setSearchName('')
+      setStatusFilter('')
+      setPage(1)
+      setScreen('list')
+      setEditingCode(null)
+      setErrors({})
+    } catch (error) {
+      console.error('Organization save failed:', error)
+      setApiError(error.message)
+      setMessage(
+        'Unable to save organization. Please check the API and try again.'
+      )
+    } finally {
+      setLoading(false)
+    }
+  }
+
+
+  function openSelectedOrganization() {
+    if (!selectedOrganization) {
+      setMessage('Please select an organization first.')
+      return
+    }
+
+    setViewOrganization(selectedOrganization)
+    setScreen('details')
+    setMessage('')
+  }
+
+  function deleteSelectedOrganization() {
+    if (!selectedOrganization) {
+      setMessage('Please select an organization to delete.')
+      return
+    }
+
+    setShowDeleteConfirm(true)
+  }
+
+  // DELETE from the database after confirmation.
+  async function confirmDelete() {
+    if (!selectedCode) return
+
+    const organization = organizations.find(
+      (org) => org.code === selectedCode
+    )
+
+    if (!organization) {
+      setShowDeleteConfirm(false)
+      setMessage('The selected organization was not found.')
+      return
+    }
+
+    setLoading(true)
+    setApiError('')
+
+    try {
+      const identifier = getOrganizationIdentifier(organization)
+
+      await apiRequest(
+        `${API_URL}/${encodeURIComponent(identifier)}`,
+        { method: 'DELETE' }
+      )
+
+      setOrganizations((previous) =>
+        previous.filter((org) => org.code !== selectedCode)
+      )
+
+      setSelectedCode('')
+      setViewOrganization(null)
+      setShowDeleteConfirm(false)
+      setScreen('list')
+      setMessage('Organization deleted successfully.')
+    } catch (error) {
+      setApiError(error.message)
+      setMessage(
+        'Unable to delete organization. Please check the API and try again.'
+      )
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  function displayLabel(key) {
+    return key
+      .replace(/([A-Z])/g, ' $1')
+      .replace(/^./, (character) => character.toUpperCase())
+  }
+
+  return (
+    <div className="app-shell">
+      <div className="top-menu">
+        <div className="top-menu-items">
+          <button type="button" onClick={goToList}>
+            Masters ▾
+          </button>
+          <button
+            type="button"
+            onClick={() => setMessage('User Management selected.')}
+          >
+            User Management ▾
+          </button>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => setMessage('Language settings selected.')}
+        >
+          Language ▾
+        </button>
+      </div>
+
+      <header className="app-titlebar">
+        <h1>150CHF</h1>
+        <div className="app-user-info">
+          <span>User: APPADMIN</span>
+          <span>Party: APPADMIN</span>
+          <span>Role: APPADMIN</span>
+        </div>
+      </header>
+
+      <div className="screen-heading">
+        <h2>
+          {screen === 'add'
+            ? editingCode
+              ? 'Organization - Edit'
+              : 'Organization - Add'
+            : screen === 'details'
+              ? 'Organization - View'
+              : 'Organization - List'}
+        </h2>
+      </div>
+
+      <div className="app-toolbar">
+        <div className="app-toolbar-group">
+          <button
+            type="button"
+            title="Back to Organization List"
+            aria-label="Back"
+            onClick={goToList}
+          >
+            ←
+          </button>
+
+          {screen === 'list' && (
+            <>
+              <button
+                type="button"
+                title="Add Organization"
+                aria-label="Add Organization"
+                onClick={openAddScreen}
+              >
+                +
+              </button>
+              <button
+                type="button"
+                title="Open Organization Selection"
+                aria-label="Select Organization"
+                onClick={openSelector}
+              >
+                ⌕
+              </button>
+              <button
+                type="button"
+                title="Edit Selected Organization"
+                aria-label="Edit Selected Organization"
+                onClick={openEditScreen}
+              >
+                ✎
+              </button>
+              <button
+                type="button"
+                title="Delete Selected Organization"
+                aria-label="Delete Selected Organization"
+                onClick={deleteSelectedOrganization}
+              >
+                🗑
+              </button>
+            </>
+          )}
+
+          {screen === 'add' && (
+            <>
+              <button
+                type="submit"
+                form="organization-form"
+                title="Save Organization"
+                aria-label="Save"
+                disabled={loading}
+              >
+                ✓
+              </button>
+              <button
+                type="button"
+                title="Cancel"
+                aria-label="Cancel"
+                onClick={goToList}
+              >
+                ✕
+              </button>
+            </>
+          )}
+
+          {screen === 'details' && (
+            <>
+              <button
+                type="button"
+                title="Edit Organization"
+                onClick={() => {
+                  if (viewOrganization) {
+                    setSelectedCode(viewOrganization.code)
+                    setForm({ ...emptyForm, ...viewOrganization })
+                    setEditingCode(viewOrganization.code)
+                    setScreen('add')
+                    setErrors({})
+                  }
+                }}
+              >
+                Edit
+              </button>
+              <button type="button" onClick={goToList}>
+                List
+              </button>
+            </>
+          )}
+        </div>
+
+        <button
+          type="button"
+          title="Logout"
+          aria-label="Logout"
+          onClick={() => setMessage('Logout is not connected yet.')}
+        >
+          ⏻
+        </button>
+      </div>
+
+      <main className="app-content">
+        {apiError && (
+          <div className="app-message" role="alert">
+            <span>{apiError}</span>
+            <button
+              type="button"
+              aria-label="Close API error"
+              onClick={() => setApiError('')}
+            >
+              ×
+            </button>
+          </div>
+        )}
+
+        {message && (
+          <div className="app-message" role="status">
+            <span>{message}</span>
+            <button
+              type="button"
+              aria-label="Close message"
+              onClick={() => setMessage('')}
+            >
+              ×
+            </button>
+          </div>
+        )}
+
+        {loading && (
+          <div className="app-message" role="status">
+            Please wait...
+          </div>
+        )}
+
+        {screen === 'list' && (
+          <>
+            <section className="org-panel">
+              <div className="org-section-heading">
+                <h2>Organization List</h2>
+                <span>{filteredOrganizations.length} records</span>
+              </div>
+
+              <div className="org-list-tools">
+                <div className="org-search-field">
+                  <label htmlFor="search-code">Organization Code</label>
+                  <input
+                    id="search-code"
+                    value={searchCode}
+                    onChange={(event) => setSearchCode(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter') runSearch()
+                    }}
+                    placeholder="Enter code"
+                  />
+                </div>
+
+                <div className="org-search-field">
+                  <label htmlFor="search-name">Organization Name</label>
+                  <input
+                    id="search-name"
+                    value={searchName}
+                    onChange={(event) => setSearchName(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter') runSearch()
+                    }}
+                    placeholder="Enter name"
+                  />
+                </div>
+
+                <div className="org-status-field">
+                  <label htmlFor="organization-status">Status</label>
+                  <select
+                    id="organization-status"
+                    value={statusFilter}
+                    onChange={(event) => setStatusFilter(event.target.value)}
+                  >
+                    <option value="">All Statuses</option>
+                    <option value="Active">Active</option>
+                    <option value="Inactive">Inactive</option>
+                  </select>
+                </div>
+
+                <button
+                  type="button"
+                  className="primary-btn"
+                  onClick={runSearch}
+                >
+                  Search
+                </button>
+
+                <button
+                  type="button"
+                  className="secondary-btn"
+                  onClick={clearSearch}
+                >
+                  Clear
+                </button>
+              </div>
+
+              <div className="org-table-wrapper">
+                <table className="org-table">
+                  <thead>
+                    <tr>
+                      <th>Select</th>
+                      <th>Organization Code</th>
+                      <th>Organization Name</th>
+                      <th>Reporting Currency</th>
+                      <th>Status</th>
+                    </tr>
+                  </thead>
+
+                  <tbody>
+                    {visibleOrganizations.map((org) => (
+                      <tr
+                        key={org.code}
+                        className={selectedCode === org.code ? 'selected' : ''}
+                        onClick={() => setSelectedCode(org.code)}
+                      >
+                        <td>
+                          <input
+                            type="radio"
+                            name="selectedOrganization"
+                            aria-label={`Select ${org.name}`}
+                            checked={selectedCode === org.code}
+                            onChange={() => setSelectedCode(org.code)}
+                            onClick={(event) => event.stopPropagation()}
+                          />
+                        </td>
+                        <td>{org.code}</td>
+                        <td>{org.name}</td>
+                        <td>{org.currency || '—'}</td>
+                        <td>
+                          <span
+                            className={
+                              org.status === 'Active'
+                                ? 'status-active'
+                                : 'status-inactive'
+                            }
+                          >
+                            {org.status}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+
+                    {visibleOrganizations.length === 0 && (
+                      <tr>
+                        <td colSpan={5} className="empty-table">
+                          No organizations found. Try different search criteria.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+
+              <div className="org-pagination">
+                <label>
+                  Lines per Page
+                  <select
+                    value={rowsPerPage}
+                    onChange={(event) => {
+                      setRowsPerPage(Number(event.target.value))
+                      setPage(1)
+                    }}
+                  >
+                    <option value={5}>5</option>
+                    <option value={10}>10</option>
+                    <option value={20}>20</option>
+                    <option value={50}>50</option>
+                  </select>
+                </label>
+
+                <span>
+                  {filteredOrganizations.length === 0
+                    ? '0 records'
+                    : `${(page - 1) * rowsPerPage + 1}–${Math.min(
+                        page * rowsPerPage,
+                        filteredOrganizations.length
+                      )} of ${filteredOrganizations.length}`}
+                </span>
+
+                <button
+                  type="button"
+                  disabled={page <= 1}
+                  onClick={() => setPage((previous) => previous - 1)}
+                >
+                  Previous
+                </button>
+
+                <span>
+                  Page {page} of {totalPages}
+                </span>
+
+                <button
+                  type="button"
+                  disabled={page >= totalPages}
+                  onClick={() => setPage((previous) => previous + 1)}
+                >
+                  Next
+                </button>
+              </div>
+
+              <div className="org-bottom-actions">
+                <button
+                  type="button"
+                  className="primary-btn"
+                  onClick={openSelectedOrganization}
+                >
+                  View Selected
+                </button>
+                <button
+                  type="button"
+                  className="secondary-btn"
+                  onClick={openEditScreen}
+                >
+                  Edit Selected
+                </button>
+                <button
+                  type="button"
+                  className="secondary-btn"
+                  onClick={openAddScreen}
+                >
+                  + Add Organization
+                </button>
+              </div>
+            </section>
+
+            <section className="org-panel">
+              <div className="org-section-heading">
+                <h2>Selected Organization Summary</h2>
+                <span>
+                  {selectedOrganization ? 'Selected' : 'No selection'}
+                </span>
+              </div>
+
+              {selectedOrganization ? (
+                <div className="details-grid">
+                  <div className="detail-item">
+                    <span>Organization Code</span>
+                    <strong>{selectedOrganization.code}</strong>
+                  </div>
+                  <div className="detail-item">
+                    <span>Organization Name</span>
+                    <strong>{selectedOrganization.name}</strong>
+                  </div>
+                  <div className="detail-item">
+                    <span>Status</span>
+                    <strong>
+                      <span
+                        className={
+                          selectedOrganization.status === 'Active'
+                            ? 'status-active'
+                            : 'status-inactive'
+                        }
+                      >
+                        {selectedOrganization.status}
+                      </span>
+                    </strong>
+                  </div>
+                </div>
+              ) : (
+                <p>Select an organization row to see its summary here.</p>
+              )}
+            </section>
+          </>
+        )}
+
+        {screen === 'add' && (
+          <section className="org-panel">
+            <div className="org-section-heading">
+              <h2>Organization Details</h2>
+              <span>{editingCode ? 'Edit Details' : 'Main Details'}</span>
+            </div>
+
+            <form
+              id="organization-form"
+              className="org-form"
+              onSubmit={saveOrganization}
+              noValidate
+            >
+              <div className="form-grid">
+                <FormField label="Organization Code *" error={errors.code}>
+                  <input
+                    name="code"
+                    value={form.code}
+                    onChange={updateField}
+                    maxLength={30}
+                    required
+                    disabled={Boolean(editingCode)}
+                    aria-invalid={Boolean(errors.code)}
+                    placeholder="Enter organization code"
+                  />
+                </FormField>
+
+                <FormField label="Organization Name *" error={errors.name}>
+                  <input
+                    name="name"
+                    value={form.name}
+                    onChange={updateField}
+                    maxLength={150}
+                    required
+                    aria-invalid={Boolean(errors.name)}
+                    placeholder="Enter organization name"
+                  />
+                </FormField>
+
+                <FormField label="Status">
+                  <select
+                    name="status"
+                    value={form.status}
+                    onChange={updateField}
+                  >
+                    <option value="Active">Active</option>
+                    <option value="Inactive">Inactive</option>
+                  </select>
+                </FormField>
+
+                <FormField label="Organization Type">
+                  <select name="type" value={form.type} onChange={updateField}>
+                    <option value="">Select Type</option>
+                    <option value="Head Office">Head Office</option>
+                    <option value="Branch">Branch</option>
+                    <option value="Subsidiary">Subsidiary</option>
+                    <option value="Other">Other</option>
+                  </select>
+                </FormField>
+
+                <FormField
+                  label="Reporting Currency *"
+                  error={errors.currency}
+                >
+                  <select
+                    name="currency"
+                    value={form.currency}
+                    onChange={updateField}
+                    required
+                    aria-invalid={Boolean(errors.currency)}
+                  >
+                    <option value="INR">INR - Indian Rupee</option>
+                    <option value="USD">USD - US Dollar</option>
+                    <option value="EUR">EUR - Euro</option>
+                    <option value="GBP">GBP - British Pound</option>
+                  </select>
+                </FormField>
+
+                <FormField label="Industry">
+                  <select
+                    name="industry"
+                    value={form.industry}
+                    onChange={updateField}
+                  >
+                    <option value="">Select Industry</option>
+                    <option value="Information Technology">
+                      Information Technology
+                    </option>
+                    <option value="Manufacturing">Manufacturing</option>
+                    <option value="Healthcare">Healthcare</option>
+                    <option value="Education">Education</option>
+                    <option value="Logistics">Logistics</option>
+                    <option value="Other">Other</option>
+                  </select>
+                </FormField>
+
+                <FormField label="Registration Number">
+                  <input
+                    name="registrationNumber"
+                    value={form.registrationNumber}
+                    onChange={updateField}
+                  />
+                </FormField>
+
+                <FormField label="Date of Incorporation">
+                  <input
+                    type="date"
+                    name="incorporationDate"
+                    value={form.incorporationDate}
+                    onChange={updateField}
+                  />
+                </FormField>
+
+                <FormField label="Tax ID">
+                  <input
+                    name="taxId"
+                    value={form.taxId}
+                    onChange={updateField}
+                  />
+                </FormField>
+
+                <FormField label="Country *" error={errors.country}>
+                  <select
+                    name="country"
+                    value={form.country}
+                    onChange={updateField}
+                    required
+                    aria-invalid={Boolean(errors.country)}
+                  >
+                    <option value="">Select Country</option>
+                    {countries.map((country) => (
+                      <option key={country} value={country}>
+                        {country}
+                      </option>
+                    ))}
+                  </select>
+                </FormField>
+
+                <FormField label="State / Province *" error={errors.state}>
+                  <select
+                    name="state"
+                    value={form.state}
+                    onChange={updateField}
+                    required
+                    disabled={!form.country}
+                    aria-invalid={Boolean(errors.state)}
+                  >
+                    <option value="">Select State / Province</option>
+                    {(countryStates[form.country] || []).map((stateName) => (
+                      <option key={stateName} value={stateName}>
+                        {stateName}
+                      </option>
+                    ))}
+                  </select>
+                </FormField>
+
+                <FormField label="City">
+                  <input
+                    name="city"
+                    value={form.city}
+                    onChange={updateField}
+                    placeholder="Enter city"
+                  />
+                </FormField>
+
+                <FormField label="Pincode / Postal Code" error={errors.pincode}>
+                  <input
+                    name="pincode"
+                    value={form.pincode}
+                    onChange={updateField}
+                    aria-invalid={Boolean(errors.pincode)}
+                    placeholder="Enter postal code"
+                  />
+                </FormField>
+
+                <FormField label="Phone" error={errors.phone}>
+                  <input
+                    type="tel"
+                    name="phone"
+                    value={form.phone}
+                    onChange={updateField}
+                    aria-invalid={Boolean(errors.phone)}
+                    placeholder="Enter phone number"
+                  />
+                </FormField>
+
+                <FormField label="Email" error={errors.email}>
+                  <input
+                    type="email"
+                    name="email"
+                    value={form.email}
+                    onChange={updateField}
+                    aria-invalid={Boolean(errors.email)}
+                    placeholder="name@example.com"
+                  />
+                </FormField>
+
+                <FormField label="Website">
+                  <input
+                    type="url"
+                    name="website"
+                    value={form.website}
+                    onChange={updateField}
+                    placeholder="https://example.com"
+                  />
+                </FormField>
+              </div>
+
+              <div className="license-row">
+                <label>
+                  <input
+                    type="checkbox"
+                    name="license"
+                    checked={form.license}
+                    onChange={updateField}
+                  />
+                  License Organization
+                </label>
+              </div>
+
+              <FormField label="Registered Address">
+                <textarea
+                  name="address"
+                  value={form.address}
+                  onChange={updateField}
+                  rows={3}
+                  placeholder="Enter registered address"
+                />
+              </FormField>
+
+              <div className="form-actions">
+                <button
+                  type="button"
+                  className="secondary-btn"
+                  onClick={goToList}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="primary-btn"
+                  disabled={loading}
+                >
+                  {loading
+                    ? 'Please wait...'
+                    : editingCode
+                      ? 'Update Organization'
+                      : 'Save Organization'}
+                </button>
+              </div>
+            </form>
+          </section>
+        )}
+
+        {screen === 'details' && viewOrganization && (
+          <section className="org-panel">
+            <div className="org-section-heading">
+              <h2>Organization Details</h2>
+              <span>{viewOrganization.status}</span>
+            </div>
+
+            <div className="details-grid">
+              {Object.entries(viewOrganization)
+                .filter(([key]) => key !== 'id')
+                .map(([key, value]) => (
+                  <div className="detail-item" key={key}>
+                    <span>{displayLabel(key)}</span>
+                    <strong>
+                      {typeof value === 'boolean'
+                        ? value
+                          ? 'Yes'
+                          : 'No'
+                        : value || '—'}
+                    </strong>
+                  </div>
+                ))}
+            </div>
+
+            <div className="form-actions">
+              <button
+                type="button"
+                className="secondary-btn"
+                onClick={goToList}
+              >
+                Back to List
+              </button>
+              <button
+                type="button"
+                className="primary-btn"
+                onClick={() => {
+                  setSelectedCode(viewOrganization.code)
+                  setForm({ ...emptyForm, ...viewOrganization })
+                  setEditingCode(viewOrganization.code)
+                  setErrors({})
+                  setScreen('add')
+                }}
+              >
+                Edit Organization
+              </button>
+            </div>
+          </section>
+        )}
+      </main>
+
+      <footer className="app-footer">
+        150CHF Organization Management System
+      </footer>
+
+      {showSelector && (
+        <div
+          className="modal-backdrop"
+          role="presentation"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) {
+              setShowSelector(false)
+            }
+          }}
+        >
+          <section
+            className="organization-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="organization-modal-title"
+          >
+            <div className="modal-header">
+              <h2 id="organization-modal-title">Select an Organization</h2>
+              <button
+                type="button"
+                aria-label="Close organization selector"
+                onClick={() => setShowSelector(false)}
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="modal-search-grid">
+              <FormField label="Organization Code">
+                <input
+                  value={modalCode}
+                  onChange={(event) => setModalCode(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter') runModalSearch()
+                  }}
+                  placeholder="Enter code"
+                />
+              </FormField>
+
+              <FormField label="Organization Name">
+                <input
+                  value={modalName}
+                  onChange={(event) => setModalName(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter') runModalSearch()
+                  }}
+                  placeholder="Enter organization name"
+                />
+              </FormField>
+
+              <FormField label="Status">
+                <select
+                  value={modalStatus}
+                  onChange={(event) => setModalStatus(event.target.value)}
+                >
+                  <option value="">All Statuses</option>
+                  <option value="Active">Active</option>
+                  <option value="Inactive">Inactive</option>
+                </select>
+              </FormField>
+            </div>
+
+            <div className="modal-actions">
+              <button
+                type="button"
+                className="primary-btn"
+                onClick={runModalSearch}
+              >
+                Search
+              </button>
+              <button
+                type="button"
+                className="secondary-btn"
+                onClick={clearModalSearch}
+              >
+                Clear
+              </button>
+            </div>
+
+            <div className="org-table-wrapper">
+              <table className="org-table">
+                <thead>
+                  <tr>
+                    <th>Select</th>
+                    <th>Code</th>
+                    <th>Organization Name</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {visibleModalOrganizations.map((org) => (
+                    <tr
+                      key={org.code}
+                      className={selectedCode === org.code ? 'selected' : ''}
+                      onClick={() => setSelectedCode(org.code)}
+                    >
+                      <td>
+                        <input
+                          type="radio"
+                          name="modalOrganization"
+                          checked={selectedCode === org.code}
+                          onChange={() => setSelectedCode(org.code)}
+                          aria-label={`Select ${org.name}`}
+                        />
+                      </td>
+                      <td>{org.code}</td>
+                      <td>{org.name}</td>
+                      <td>
+                        <span
+                          className={
+                            org.status === 'Active'
+                              ? 'status-active'
+                              : 'status-inactive'
+                          }
+                        >
+                          {org.status}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+
+                  {visibleModalOrganizations.length === 0 && (
+                    <tr>
+                      <td colSpan={4} className="empty-table">
+                        No organizations found.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="org-pagination">
+              <label>
+                Lines per Page
+                <select
+                  value={modalRowsPerPage}
+                  onChange={(event) => {
+                    setModalRowsPerPage(Number(event.target.value))
+                    setModalPage(1)
+                  }}
+                >
+                  <option value={5}>5</option>
+                  <option value={10}>10</option>
+                  <option value={20}>20</option>
+                </select>
+              </label>
+
+              <span>
+                {modalOrganizations.length === 0
+                  ? '0 records'
+                  : `${(modalPage - 1) * modalRowsPerPage + 1}–${Math.min(
+                      modalPage * modalRowsPerPage,
+                      modalOrganizations.length
+                    )} of ${modalOrganizations.length}`}
+              </span>
+
+              <button
+                type="button"
+                disabled={modalPage <= 1}
+                onClick={() => setModalPage((previous) => previous - 1)}
+              >
+                Previous
+              </button>
+              <span>
+                Page {modalPage} of {modalTotalPages}
+              </span>
+              <button
+                type="button"
+                disabled={modalPage >= modalTotalPages}
+                onClick={() => setModalPage((previous) => previous + 1)}
+              >
+                Next
+              </button>
+            </div>
+
+            <div className="form-actions">
+              <button
+                type="button"
+                className="secondary-btn"
+                onClick={() => setShowSelector(false)}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="primary-btn"
+                disabled={!selectedCode}
+                onClick={() => chooseOrganization(selectedCode)}
+              >
+                Select Organization
+              </button>
+            </div>
+          </section>
+        </div>
+      )}
+
+      {showDeleteConfirm && (
+        <div className="modal-backdrop">
+          <section
+            className="organization-modal delete-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="delete-title"
+          >
+            <div className="modal-header">
+              <h2 id="delete-title">Confirm Delete</h2>
+            </div>
+            <p>
+              Are you sure you want to delete{' '}
+              <strong>{selectedOrganization?.name}</strong> (
+              {selectedOrganization?.code})?
+            </p>
+            <div className="form-actions">
+              <button
+                type="button"
+                className="secondary-btn"
+                onClick={() => setShowDeleteConfirm(false)}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="primary-btn"
+                onClick={confirmDelete}
+                disabled={loading}
+              >
+                {loading ? 'Please wait...' : 'Delete'}
+              </button>
+            </div>
+          </section>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function FormField({ label, children, error }) {
+  return (
+    <div className="form-field">
+      <label>{label}</label>
+      {children}
+      {error && (
+        <small className="field-error" role="alert">
+          {error}
+        </small>
+      )}
+    </div>
+  )
+}
+
+export default App
