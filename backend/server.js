@@ -303,7 +303,33 @@ app.get("/api/db-test", async (req, res) => {
 });
 
 // ========================================
-// REPORTING CURRENCY LOOKUP
+// // ========================================
+// COUNTRY LOOKUP - POSTGRESQL
+// ========================================
+
+console.log("COUNTRY API REGISTERED SUCCESSFULLY");
+
+app.get("/api/lookups/countries", async (req, res) => {
+  try {
+    const result = await db.query(`
+      SELECT
+        id,
+        country_code_iso3 AS country_code,
+        country_name,
+        status
+      FROM public.country_master
+      ORDER BY country_name
+    `);
+
+    res.json(result.rows);
+  } catch (error) {
+    apiError(res, error, "Could not load countries.");
+  }
+});
+
+
+// ========================================
+// REPORTING CURRENCY LOOKUP - POSTGRESQL
 // ========================================
 
 app.get("/api/lookups/reporting-currencies", async (req, res) => {
@@ -321,6 +347,88 @@ app.get("/api/lookups/reporting-currencies", async (req, res) => {
     res.json(result.rows);
   } catch (error) {
     apiError(res, error, "Could not load reporting currencies.");
+  }
+});
+
+
+ // ===== INDUSTRY LOOKUP - POSTGRESQL =====
+
+app.get("/api/lookups/industries", async (req, res) => {
+  try {
+    const result = await db.query(`
+      SELECT
+        id,
+        industry_code,
+        industry_name,
+        status
+      FROM public.industry_master
+      ORDER BY industry_name
+    `);
+
+    res.json(result.rows);
+  } catch (error) {
+    apiError(res, error, "Could not load industries.");
+  }
+});
+
+// ===== [INDUSTRY-API-02 | Create Industry Master] =====
+
+app.post("/api/lookups/industries", async (req, res) => {
+  try {
+    const { industry_code, industry_name, status = "Active" } = req.body || {};
+
+    const code = String(industry_code ?? "").trim();
+    const name = String(industry_name ?? "").trim();
+
+    if (!code || !name) {
+      return res.status(400).json({
+        message: "Industry Code and Industry Name are required."
+      });
+    }
+
+    if (code.length > 30 || name.length > 150) {
+      return res.status(400).json({
+        message: "Industry Code or Name is too long."
+      });
+    }
+
+    if (!["Active", "Inactive"].includes(status)) {
+      return res.status(400).json({
+        message: "Invalid industry status."
+      });
+    }
+
+    const duplicate = await db.query(
+      `SELECT id FROM public.industry_master
+       WHERE LOWER(industry_code) = LOWER($1)
+       LIMIT 1`,
+      [code]
+    );
+
+    if (duplicate.rows.length > 0) {
+      return res.status(409).json({
+        message: "Industry Code already exists."
+      });
+    }
+
+    const result = await db.query(
+      `INSERT INTO public.industry_master
+       (industry_code, industry_name, status)
+       VALUES ($1, $2, $3)
+       RETURNING id, industry_code, industry_name, status`,
+      [code, name, status]
+    );
+
+    return res.status(201).json(result.rows[0]);
+
+  } catch (error) {
+    if (error.code === "23505") {
+      return res.status(409).json({
+        message: "Industry already exists."
+      });
+    }
+
+    apiError(res, error, "Could not create industry.");
   }
 });
 
@@ -342,6 +450,120 @@ app.get("/api/organizations", async (req, res) => {
     });
   } catch (error) {
     apiError(res, error, "Could not load organizations.");
+  }
+});
+
+
+ // ===== ORGANIZATION TYPE LOOKUP - POSTGRESQL =====
+
+app.get("/api/lookups/organization-types", async (req, res) => {
+  try {
+    const result = await db.query(`
+      SELECT
+        id,
+        type_code,
+        type_name,
+        status
+      FROM public.organization_type_master
+      ORDER BY type_name
+    `);
+
+    res.json(result.rows);
+  } catch (error) {
+    apiError(res, error, "Could not load organization types.");
+  }
+});
+
+// ===== [ORG-TYPE-API-02 | Create Organization Type] =====
+
+app.post("/api/lookups/organization-types", async (req, res) => {
+  try {
+    const { type_code, type_name, status = "Active" } = req.body || {};
+
+    const code = String(type_code ?? "").trim();
+    const name = String(type_name ?? "").trim();
+
+    if (!code || !name) {
+      return res.status(400).json({
+        message: "Organization Type Code and Name are required."
+      });
+    }
+
+    if (code.length > 30 || name.length > 150) {
+      return res.status(400).json({
+        message: "Organization Type Code or Name is too long."
+      });
+    }
+
+    if (!["Active", "Inactive"].includes(status)) {
+      return res.status(400).json({
+        message: "Invalid organization type status."
+      });
+    }
+
+    const duplicate = await db.query(
+      `SELECT id FROM public.organization_type_master
+       WHERE LOWER(type_code) = LOWER($1)
+       LIMIT 1`,
+      [code]
+    );
+
+    if (duplicate.rows.length > 0) {
+      return res.status(409).json({
+        message: "Organization Type Code already exists."
+      });
+    }
+
+    const result = await db.query(
+      `INSERT INTO public.organization_type_master
+       (type_code, type_name, status)
+       VALUES ($1, $2, $3)
+       RETURNING id, type_code, type_name, status`,
+      [code, name, status]
+    );
+
+    return res.status(201).json(result.rows[0]);
+
+  } catch (error) {
+    if (error.code === "23505") {
+      return res.status(409).json({
+        message: "Organization Type already exists."
+      });
+    }
+
+    apiError(res, error, "Could not create organization type.");
+  }
+});
+// ===== [GEO-LOOKUP-API-01 | State / Province lookup] =====
+// Uses SELECT * because state_master's exact display-column names
+// still need confirmation; normalize the response without changing DB schema.
+app.get("/api/lookups/states", async (req, res) => {
+  try {
+    const result = await db.query("SELECT * FROM public.state_master ORDER BY id");
+    res.json(result.rows.map(item => ({
+      id: item.id,
+      code: item.state_code ?? item.province_code ?? item.code ?? "",
+      name: item.state_name ?? item.province_name ?? item.name ?? "",
+      status: item.status ?? "",
+      country_id: item.country_id ?? null
+    })));
+  } catch (error) {
+    apiError(res, error, "Could not load states.");
+  }
+});
+
+// ===== [GEO-LOOKUP-API-02 | City lookup] =====
+app.get("/api/lookups/cities", async (req, res) => {
+  try {
+    const result = await db.query(`
+      SELECT id, city_code AS code, city_name AS name,
+             status, state_id, country_id
+      FROM public.city_master
+      ORDER BY city_name
+    `);
+    res.json(result.rows);
+  } catch (error) {
+    apiError(res, error, "Could not load cities.");
   }
 });
 
