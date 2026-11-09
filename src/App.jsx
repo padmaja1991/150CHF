@@ -7,10 +7,16 @@
 // 08 API services and validation | 09 CRUD regression tests
 // Preserve App.css, existing APIs, JSX and event handlers.
 // ============================================================
+// ===== [ORG-UI-STATUS-01 | Font Awesome Icons] =====
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faCircleCheck, faCircleXmark } from "@fortawesome/free-solid-svg-icons";
+
 import { useEffect, useMemo, useState, useRef } from 'react'
 import DataTable from './components/common/DataTable'
 // ===== [DEPT-INTEGRATION-01 | Department List Component] =====
 import DepartmentList from './features/departments/DepartmentList'
+// ===== [COUNTRY-INTEGRATION-01 | Country List Component] =====
+import CountryList from './features/countries/CountryList'
 import './App.css'
 import {
   Search,
@@ -702,9 +708,18 @@ const visibleCountries = filteredCountries.slice(
       {/* SECTION 10: TOP NAVIGATION */}      
        <div className="top-menu">
         <div className="top-menu-items">
+          {/* ===== [DEPT-NAV-01 | Department navigation] ===== */}
+          <button type="button" onClick={() => setScreen('departments')}>Departments</button>
           <button type="button" onClick={() => setScreen('screen2')}>
             ◉ Masters ▾
           </button>
+          {/* ===== [COUNTRY-NAV-01 | Country navigation] ===== */}
+<button
+  type="button"
+  onClick={() => setScreen('countries')}
+>
+  Countries
+</button>
           <button type="button">
             ♟ User Management ▾
           </button>
@@ -716,7 +731,12 @@ const visibleCountries = filteredCountries.slice(
 {/* ===== DYNAMIC HEADER TITLE ===== */}
 {/* ===== DYNAMIC HEADER TITLE ===== */}
 <h1>
-  150CHF Organization{' '}
+  {/* ===== [APP-HEADER-COUNTRY-01 | Dynamic Module Title] ===== */}
+{screen === 'departments'
+  ? '150CHF Departments'
+  : screen === 'countries'
+  ? '150CHF Countries'
+  : '150CHF Organization'}{' '}
   {screen === 'form'
     ? (editingId ? 'Edit' : 'Add')
     : screen === 'details'
@@ -734,7 +754,7 @@ const visibleCountries = filteredCountries.slice(
   </div>
 )}
       </header>
-      {/* SECTION 12: ACTION TOOLBAR */}       <div className="app-toolbar">
+      {/* SECTION 12: ACTION TOOLBAR */}       <div className="app-toolbar" style={screen === 'departments' ? { display: 'none' } : undefined}>
         <div className="app-toolbar-group">
                       {/* ===== SECTION 06: ORIGINAL TOOLBAR — LIST MODE ===== */}
             {/* ===== SECTION 06: LIST MODE TOOLBAR ===== */}
@@ -820,6 +840,11 @@ const visibleCountries = filteredCountries.slice(
         </div>
       </div>
       <main className="app-content">
+        {/* ===== [DEPT-SCREEN-01 | Independent Department module] ===== */}
+        {screen === 'departments' && <DepartmentList />}
+        {/* ===== [COUNTRY-SCREEN-01 | Independent Country Module] ===== */}
+        {screen === 'countries' && <CountryList />}
+
         {error && (
           <div className="app-message">
             <span>{error}</span>
@@ -948,7 +973,22 @@ const visibleCountries = filteredCountries.slice(
       },
       { key: 'name', header: 'Name', render: (item) => item.name },
       { key: 'currency', header: 'Rpt Curr', render: (item) => item.currency || '—' },
-      { key: 'status', header: 'Status', render: (item) => item.status },
+      // ===== [ORG-GRID-STATUS | Font Awesome Icons] =====
+{
+  key: 'status',
+  header: 'Status',
+  render: (item) => (
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+      <FontAwesomeIcon
+        icon={item.status?.toLowerCase() === 'active' ? faCircleCheck : faCircleXmark}
+        style={{
+          color: item.status?.toLowerCase() === 'active' ? 'green' : 'red'
+        }}
+      />
+      {item.status}
+    </span>
+  ),
+},
     ]}
     rows={visibleOrganizations}
     selectedId={selectedId}

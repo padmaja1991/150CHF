@@ -1,0 +1,146 @@
+/* ===== [COUNTRY-CSS-01 | Scoped Country styles: do not modify Organization/Department] ===== */
+.country-module { padding: 10px 7px 24px; color: #27304b; font-family: Arial, sans-serif; font-size: 12px; }
+.country-module button { cursor: pointer; }
+.country-toolbar { display: flex; align-items: center; gap: 6px; padding: 10px 0; margin-bottom: 8px; }
+.country-toolbar button { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 28px; border: 1px solid #cdd0e2; background: #f9f9fd; color: #62669e; border-radius: 4px; }
+.country-toolbar button:hover { background: #eae9f8; }
+.country-status { display: inline-flex; align-items: center; gap: 6px; }
+.country-sort { background: transparent; border: 1px solid #c2c2df; color: white; margin-left: 5px; }
+.country-module .org-table tbody tr { cursor: pointer; }
+.country-module .org-table tbody tr.selected { background: #dfe2f5; }
+.country-message { display: flex; justify-content: space-between; align-items: center; background: #e9f5eb; padding: 10px 14px; margin: 8px 0; border-radius: 4px; }
+.country-message.country-error { background: #fff0f0; color: #9b2323; }
+.country-message button { border: none; background: transparent; font-size: 18px; }
+/* ===== [COUNTRY-CSS-02 | Screenshot-matched Country Form] ===== */
+.country-form-screen { background: #fff; color: #222; max-width: 600px; padding: 5px 12px 30px; font-size: 12px; }
+.country-back { padding: 0; border: none; background: transparent; color: #5d6674; font-size: 11px; margin-bottom: 6px; }
+.country-form-screen h2 { font-size: 19px; font-weight: 500; margin: 2px 0 20px; color: #1e2835; }
+.country-form { border: 1px solid #dedede; border-radius: 7px; padding: 31px 18px 18px; background: #fff; }
+.country-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 18px; row-gap: 17px; }
+.country-field { display: flex; flex-direction: column; min-width: 0; gap: 5px; font-size: 11px; color: #222; }
+.country-required { color: #cf3042; }
+.country-field > input, .country-field > select, .country-lookup-line > input { box-sizing: border-box; width: 100%; height: 30px; border: 1px solid #d9d9d9; border-radius: 3px; padding: 5px 10px; background: white; color: #222; font-size: 11px; }
+.country-field > select { padding: 4px 10px; }
+.country-field input:disabled, .country-field select:disabled { background: #f5f5f5; }
+.country-lookup-line { display: flex; gap: 4px; min-width: 0; }
+.country-lookup-line input { flex: 1; min-width: 0; }
+.country-lookup-line button { width: 29px; flex: 0 0 29px; height: 30px; display: grid; place-items: center; background: #fff; border: 1px solid #d9d9d9; border-radius: 3px; }
+.country-lookup-line input::placeholder { color: #a3a3a3; }
+.country-actions { display: flex; align-items: center; gap: 12px; border-top: 1px solid #eee; margin-top: 18px; padding-top: 16px; }
+.country-primary { background: #7257bd; color: #fff; border: none; border-radius: 2px; height: 31px; min-width: 145px; padding: 0 16px; font-size: 11px; }
+.country-cancel { background: transparent; border: none; color: #555; font-size: 11px; }
+/* ===== [COUNTRY-CSS-03 | Lookup Popup] ===== */
+.country-overlay { position: fixed; inset: 0; background: rgba(30, 35, 65, .48); display: flex; align-items: center; justify-content: center; z-index: 3000; padding: 18px; }
+.country-lookup-modal { width: min(850px, 95vw); max-height: 90vh; overflow: auto; background: white; border-radius: 7px; padding: 18px; box-shadow: 0 8px 30px #0002; }
+.country-lookup-heading { display: flex; justify-content: space-between; align-items: center; }
+.country-lookup-heading h3 { margin: 0 0 12px; font-size: 19px; }
+.country-lookup-heading button { border: none; background: transparent; font-size: 22px; }
+.country-lookup-search { background: #f0eef9; border-radius: 6px; padding: 16px; margin-bottom: 12px; }
+.country-lookup-filters { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 10px; }
+.country-lookup-filters label { display: flex; flex-direction: column; gap: 5px; }
+.country-lookup-filters input, .country-lookup-filters select { height: 30px; border: 1px solid #d3d3e0; border-radius: 3px; padding: 4px 7px; }
+.country-lookup-table-wrap { overflow: auto; }
+.country-lookup-table { width: 100%; border-collapse: collapse; }
+.country-lookup-table th { text-align: left; color: white; background: #6e71a9; padding: 9px; }
+.country-lookup-table td { border: 1px solid #e0e0e9; padding: 9px; }
+.country-lookup-table tbody tr { cursor: pointer; }
+.country-lookup-table tbody tr:hover { background: #e9eaf7; }
+.country-lookup-footer { display: flex; justify-content: space-between; align-items: center; margin-top: 12px; gap: 10px; }
+.country-lookup-footer > div { display: flex; align-items: center; gap: 6px; }
+.country-lookup-footer button, .country-lookup-footer select { border: 1px solid #ddd; background: #fff; border-radius: 3px; padding: 4px 7px; }
+/* ===== [COUNTRY-CSS-04 | Reference Delete Modal] ===== */
+.country-delete-modal { width: 325px; max-width: 95vw; background: #f8f8ff; border-radius: 9px; padding: 26px 20px 20px; text-align: center; box-shadow: 0 8px 28px #0003; }
+.country-warning { color: #d93636; font-size: 25px; }
+.country-delete-modal h3 { margin: 8px 0; font-size: 13px; }
+.country-delete-modal p { font-size: 11px; color: #666b7c; }
+.country-delete-actions { display: flex; justify-content: center; gap: 8px; margin-top: 18px; }
+.country-delete-actions button { border: 1px solid #d1d3e3; border-radius: 4px; padding: 7px 12px; background: #fff; font-size: 11px; }
+.country-delete-actions .country-danger { background: #d63749; border-color: #d63749; color: #fff; }
+@media (max-width: 550px) { .country-grid { grid-template-columns: 1fr; } .country-lookup-filters { grid-template-columns: 1fr; } .country-lookup-footer { flex-direction: column; } }
+
+
+/* ===== [COUNTRY-ORG-DESIGN-01 | Country form matching Organization Add layout] ===== */
+/* Three-panel styles kept in Country.css; no additional CSS file required. */
+.country-org-form-screen { width:100%; min-width:0; padding:0 0 24px; }
+.country-org-form { width:100%; }
+.country-org-form-toolbar {
+  display:flex; gap:6px; align-items:center; padding:10px 15px;
+  background:#f1f2f8; border-bottom:1px solid #d5d9e7; margin:0 0 10px;
+}
+.country-org-form-toolbar button {
+  width:33px; height:32px; border:1px solid #cbd2e5; border-radius:4px;
+  background:#f9faff; color:#6570a5; cursor:pointer; font-size:19px; line-height:1;
+}
+.country-org-form-toolbar button:disabled { opacity:.5; cursor:not-allowed; }
+.country-org-tab-row { display:flex; align-items:center; gap:14px; margin:10px 16px; }
+.country-org-tab {
+  display:inline-block; background:#7074ae; color:white; border-radius:7px;
+  font-size:12px; font-weight:600; padding:7px 18px;
+}
+.country-org-mode-label { font-size:12px; color:#67749c; }
+.country-org-panel-grid {
+  display:grid; grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:12px; margin:0 16px; align-items:stretch;
+}
+.country-org-panel {
+  min-width:0; min-height:350px; background:#f0f1f8;
+  border:1px solid #e3e6f2; border-radius:12px; padding:14px 13px 22px;
+  box-shadow:0 3px 12px rgba(35,46,100,.06);
+}
+.country-org-panel h3 {
+  font-size:13px; color:#64749e; margin:0 0 20px; font-weight:700;
+}
+.country-org-panel-fields { display:flex; flex-direction:column; gap:12px; }
+.country-org-panel .country-field {
+  display:grid !important; grid-template-columns:minmax(95px,40%) minmax(0,1fr);
+  align-items:center; gap:10px; margin:0; width:100%; min-width:0;
+  font-size:12px; color:#52618b;
+}
+.country-org-panel .country-field > span:first-child { line-height:1.3; }
+.country-org-panel .country-field input,
+.country-org-panel .country-field select {
+  width:100%; min-width:0; height:27px; padding:3px 7px;
+  border:1px solid #cbd2e6; border-radius:4px; background:#fff;
+  box-sizing:border-box; color:#24314f; font-size:12px;
+}
+.country-org-panel .country-field select { background:#fffdf3; }
+.country-org-panel .country-lookup-line {
+  display:flex; gap:5px; min-width:0; width:100%; align-items:center;
+}
+.country-org-panel .country-lookup-line input {
+  flex:1; width:0; background:#fbf5d9;
+}
+.country-org-panel .country-lookup-line button {
+  flex:0 0 29px; height:27px; border:1px solid #cbd2e6; border-radius:4px;
+  display:grid; place-items:center; background:#f8faff; color:#6474a9;
+  cursor:pointer;
+}
+.country-org-panel .country-required { color:#c52c43; }
+@media (max-width:900px) {
+  .country-org-panel-grid { grid-template-columns:1fr; }
+  .country-org-panel { min-height:0; }
+}
+@media (max-width:520px) {
+  .country-org-panel .country-field { grid-template-columns:1fr; gap:4px; }
+}
+/* ===== [COUNTRY-ORG-DESIGN-02 | Full Width Form] ===== */
+
+.country-module:has(.country-org-form-screen) {
+  padding: 0 0 24px;
+}
+
+.country-org-form-screen {
+  width: 100%;
+  max-width: none;
+  background: transparent;
+}
+
+.country-org-panel-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+@media (max-width: 900px) {
+  .country-org-panel-grid {
+    grid-template-columns: 1fr;
+  }
+}

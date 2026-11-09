@@ -1,4 +1,4 @@
-
+const countryRoutes = require("./countryRoutes");
 const express = require("express");
 const cors = require("cors");
 require("dotenv").config();
@@ -843,6 +843,12 @@ app.post("/api/bookings", async (req, res) => {
   }
 });
 
+// ===== [DEPT-API-REGISTER-01 | Department Routes] =====
+
+const departmentRoutes = require("./departmentRoutes");
+
+app.use("/api", departmentRoutes);
+app.use("/api", countryRoutes);
 // ========================================
 // UNKNOWN API ROUTES
 // ========================================
